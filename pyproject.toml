@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools >= 70", "wheel", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ligotools"
+authors = [
+  { name="Ligo Scientific Collaboration (LSC) and Vittal Vasudevan" }
+]
+description = "Python tools for LIGO gravitational wave data analysis"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "h5py"
+]
+
+license = "BSD-3-Clause"
+license-files = ["LICENSE*"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+keywords = ["LIGO", "gravitational waves", "analysis", "tools"]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/UCB-stat-159-f25/hw3-VittalVasudevan"
+Issues = "https://github.com/UCB-stat-159-f25/hw3-VittalVasudevan/issues"
+
+[tool.setuptools]
+packages = ["ligotools"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ligotools.__version__"}
