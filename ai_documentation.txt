@@ -1,0 +1,297 @@
+AI documentation for HW3
+
+AI Used ChatGPT
+
+Main usage: coding assistance and debugging especially for assisting with test cases and debugging. 
+Also used for debugging with local MyST builds
+
+Sample Prompts and Outputs (Debugging Example Included):
+
+Prompt: I wrote a simple test for a whiten function using a sine wave but I think I messed up can you help me improve it
+def test_whiten_simple():
+    sig = np.sin(np.linspace(0, 1, 100))
+    fsig = whiten(sig)
+    assert fsig is not None 
+
+Output:
+Absolutely! The test you wrote is very basic—it only checks that whiten returns something non-None. It doesn't actually verify that the output is whitened, which is the whole point.
+
+Here’s a better approach:
+
+Check that the output has zero mean (a property of whitened signals).
+
+Check that the output has unit variance (another property).
+
+Optionally, check that the output is uncorrelated (harder for small signals, but autocorrelation at lag 1 should be near 0).
+
+Here’s a revised test:
+
+import numpy as np
+
+def test_whiten_simple():
+    sig = np.sin(np.linspace(0, 2 * np.pi, 100))  # full sine wave
+    fsig = whiten(sig)
+
+    # Make sure something is returned
+    assert fsig is not None
+
+    # Check mean ~ 0
+    assert np.abs(np.mean(fsig)) < 1e-10, f"Mean not zero: {np.mean(fsig)}"
+
+    # Check variance ~ 1
+    assert np.abs(np.var(fsig) - 1) < 1e-10, f"Variance not 1: {np.var(fsig)}"
+
+    # Optional: Check autocorrelation at lag 1 is small
+    autocorr = np.corrcoef(fsig[:-1], fsig[1:])[0, 1]
+    assert np.abs(autocorr) < 0.2, f"Autocorrelation too high: {autocorr}"
+
+If you want, I can also show a different test which is usually better for whiten because sine waves are deterministic and have structure.
+
+def test_whiten():
+    t = np.linspace(0, 1, 1000)
+    sig = np.sin(2 * np.pi * 5 * t)
+    fsig = whiten(sig)
+    # Check that the whitened signal has unit standard deviation
+    assert np.isclose(np.std(fsig), 1, atol=0.1)
+
+
+Prompt: "I also had a similar basic test for reqshift in readligo.py that verifies frequency shifting of a signal I want it better."
+Output:
+Got it! Just like with your whiten test, a basic test for reqshift that only checks that it returns something isn’t very useful. For frequency shifting, a stronger test should verify that the signal’s frequency content has shifted by the expected amount.
+
+Here’s an improved example:
+
+import numpy as np
+from readligo import reqshift
+
+def test_reqshift():
+    t = np.linspace(0, 1, 1000)
+    sig = np.exp(1j * 2 * np.pi * 10 * t)
+    shifted = reqshift(sig, 5)
+    assert np.allclose(np.abs(shifted), np.abs(sig))
+
+    # Shift signal up by 10 Hz
+    f_shift = 10
+    shifted_sig = reqshift(sig, f_shift, fs)
+
+    # Basic checks
+    assert shifted_sig is not None
+
+    # Compute FFTs to check frequency content
+    orig_fft = np.fft.fft(sig)
+    shifted_fft = np.fft.fft(shifted_sig)
+    freqs = np.fft.fftfreq(len(sig), 1/fs)
+
+    # Find the peak frequency in original and shifted signals
+    orig_peak = freqs[np.argmax(np.abs(orig_fft))]
+    shifted_peak = freqs[np.argmax(np.abs(shifted_fft))]
+
+    # Check that the frequency shifted by ~f_shift
+    expected_peak = orig_peak + f_shift
+    assert np.isclose(shifted_peak, expected_peak, atol=0.5), \
+        f"Expected peak {expected_peak}, got {shifted_peak}"
+
+
+Prompt: "Explain how to create a MyST Makefile with env, html, and clean targets."
+Output:
+
+# Makefile for MyST/Sphinx docs
+
+# Python environment directory
+ENV_DIR := .env
+
+# Sphinx source and build directories
+SPHINX_SRC := docs
+SPHINX_BUILD := $(SPHINX_SRC)/_build
+
+.PHONY: env html clean
+
+# 1. Create virtual environment and install dependencies
+env:
+	python3 -m venv $(ENV_DIR)
+	$(ENV_DIR)/bin/pip install --upgrade pip
+	$(ENV_DIR)/bin/pip install -r requirements.txt
+
+# 2. Build HTML documentation
+html: env
+	$(ENV_DIR)/bin/sphinx-build -b html $(SPHINX_SRC) $(SPHINX_BUILD)/html
+
+# 3. Clean build artifacts
+clean:
+	rm -rf $(SPHINX_BUILD) $(ENV_DIR)
+
+Prompt: I'm thinking of something simipler like this tell me the pros and cons: 
+# Makefile for MyST site
+
+# Targets
+.PHONY: env html clean
+
+# Create or update conda environment
+env:
+	conda env update --file environment.yml --prune --name ligo
+
+# Build local HTML site
+html:
+	myst build --html
+
+# Clean up generated files and folders
+clean:
+	rm -rf figures/* audio/* _build" 
+
+Output:
+ChatGPT said:Ah, I see! Your simpler Makefile is definitely more concise and leverages Conda and MyST’s CLI directly. Let’s break down the pros and cons compared to a more “classic” Sphinx-based Makefile:
+
+✅ Pros of your version:
+
+
+Simplicity
+
+
+Very short and easy to read; minimal boilerplate.
+
+
+Only three targets, each does one clear thing.
+
+
+
+
+Conda integration
+
+
+Uses conda env update which ensures all dependencies in environment.yml are installed/updated.
+
+
+Automatically prunes unused packages.
+
+
+
+
+Direct MyST CLI use
+
+
+myst build --html builds the site without needing a full Sphinx command.
+
+
+Works well if you’re using MyST in standalone mode, e.g., myst-parser with Markdown files only.
+
+
+
+
+Quick cleaning
+
+
+Removes generated figures, audio, and _build in one command.
+
+
+
+
+
+⚠️ Cons / potential issues:
+
+
+Environment assumption
+
+
+Assumes the user already has Conda installed.
+
+
+Does not handle virtual environments via venv or pip if Conda is unavailable.
+
+
+
+
+No separation between source and build
+
+
+_build folder is removed blindly; if you have other important files in _build, they’ll be deleted.
+
+
+
+
+Less flexibility
+
+
+No separate HTML vs. PDF builds (Sphinx often supports multiple output formats).
+
+
+Harder to extend to things like latexpdf, linkcheck, or spellcheck.
+
+
+
+
+No automatic environment activation
+
+
+You update the environment, but html assumes you’re already in the right Conda environment.
+
+
+Users might forget to conda activate ligo before running make html.
+
+
+
+
+Limited error checking
+
+
+If myst build fails, there’s no custom handling or logs.
+
+
+Doesn’t check whether the environment update succeeded before building.
+
+
+
+
+
+💡 Summary:
+Your simpler Makefile is great for personal projects or small MyST sites, especially if everyone on the team uses Conda. But for more robust, multi-format, or shared documentation projects, the classic Sphinx-style Makefile with explicit paths, virtual environments, and more targets is safer and more flexible.
+If you want, I can suggest a slightly improved version that keeps your simplicity but adds environment activation and safer build/clean—just a few extra lines. Do you want me to do that?
+
+
+
+Prompt: "Fix my Makefile error '/bin/sh: 0: Illegal option -o pipefail'."
+
+Output: Ah! That error happens because your Makefile is trying to use set -o pipefail, which is a bash-specific option, but your Makefile is being run with /bin/sh (the default shell for Make on many systems, e.g., Debian/Ubuntu). /bin/sh doesn’t support pipefail.
+
+Here are ways to fix it:
+
+Option 1: Force Make to use bash
+
+Add this at the top of your Makefile:
+
+SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
+
+
+SHELL := /bin/bash → use bash instead of sh
+
+.SHELLFLAGS := -eu -o pipefail -c → pass pipefail safely to bash
+
+This allows you to keep set -o pipefail behavior in your recipes.
+
+Option 2: Remove pipefail usage
+
+If you don’t need pipefail, just remove the set -o pipefail line from your Makefile recipes:
+
+# instead of
+# set -o pipefail; my_command | other_command
+# just write
+my_command | other_command
+
+
+Downside: if a command in a pipeline fails, make may not detect the error.
+
+Option 3: Use || exit for pipelines
+
+If you want safer error handling without pipefail:
+
+my_command | other_command || exit 1
+
+
+This will exit if the last command in the pipeline fails.
+
+Less robust than pipefail but portable in /bin/sh.
+
+💡 Recommendation:
+Use Option 1 if you want bash features (pipefail, set -e) reliably. Most modern Makefiles do this at the top.
+
+If you want, I can rewrite your MyST Makefile with proper bash support so you won’t see this error again.
